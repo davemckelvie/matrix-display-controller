@@ -30,6 +30,7 @@
 #define STX 2
 #define ETX 3
 #define BUFF_LEN  200
+#define NON_ASCII_LEN 32 // number of ascii control characters available
 
 #define CMD_PRINT_LINE 4
 #define CMD_CLEAR_LINE 5
@@ -58,12 +59,26 @@ CircularBuffer buffer;
 
 uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
 uint8_t bufferData[BUFF_LEN] = {0};
+uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
 
 static volatile uint8_t command_count = 0;
+
+void overRideControlCharacter(uint8_t index, uint8_t *bitmap)
+{
+  if (index >= NON_ASCII_LEN) return;
+  if (!bitmap) return;
+
+  for (uint8_t i = 0; i < CHAR_HEIGHT; i++) {
+    control[index][i] = bitmap[i];
+  }
+}
 
 void putch(uint8_t x, uint8_t y, char character)
 {
   if (!isAscii(character)) {
+    if (isControl(character)) {
+        matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, control[character]);
+    }
     return;
   }
 
@@ -139,21 +154,17 @@ void process_character(uint8_t character) {
     case GET_COMMAND:
     command = character;
     switch (character) {
+
+      // commands with parameters
       case CMD_PRINT_LINE:
-      state = GET_PARAM;
-      break;
-
       case CMD_CLEAR_LINE:
+      case CMD_SET_CHARACTER:
       state = GET_PARAM;
       break;
 
+      // commands without
       case CMD_CLEAR_DISP:
       // TODO: clear display
-      state = WAIT_FOR_STX;
-      break;
-
-      case CMD_SET_CHARACTER:
-      // TODO: yeah whatever
       state = WAIT_FOR_STX;
       break;
 
@@ -165,11 +176,19 @@ void process_character(uint8_t character) {
 
     case GET_PARAM:
     param = character;
-    if (command == CMD_PRINT_LINE) {
+    switch (command) {
+      case CMD_PRINT_LINE:
+      case CMD_SET_CHARACTER:
       state = GET_DATA;
-    } else {
+      break;
+
+      case CMD_CLEAR_LINE:
       // TODO: clear line
       state = WAIT_FOR_STX;
+      break;
+
+      default:
+      break;
     }
     break;
 
@@ -180,7 +199,11 @@ void process_character(uint8_t character) {
       interrupts();
       lineBuffer[index] = 0;
       state = WAIT_FOR_STX;
-      printLine(param, lineBuffer);
+      if (command == CMD_PRINT_LINE) {
+        printLine(param, lineBuffer);
+      } else if (command == CMD_SET_CHARACTER) {
+        overRideControlCharacter(param, lineBuffer);
+      }
     } else {
       lineBuffer[index++] = character;
       if (index > 63) {
