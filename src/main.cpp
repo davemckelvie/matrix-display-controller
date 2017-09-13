@@ -36,6 +36,8 @@
 #define CMD_CLEAR_LINE 5
 #define CMD_CLEAR_DISP 6
 #define CMD_SET_CHARACTER 7
+#define CMD_DISPLAY_ON 8
+#define CMD_DISPLAY_OFF 9
 
 typedef enum {
   WAIT_FOR_STX,
@@ -75,14 +77,11 @@ void overRideControlCharacter(uint8_t index, uint8_t *bitmap)
 
 void putch(uint8_t x, uint8_t y, char character)
 {
-  if (!isAscii(character)) {
-    if (isControl(character)) {
-        matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, control[character]);
-    }
-    return;
+  if (character >= 0 && character < 0x20) {
+    matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, control[character]);
+  } else if (character > 0x1F && character < 0x7F) {
+    matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, ASCII[character - 0x20]);
   }
-
-  matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, ASCII[character - 0x20]);
 }
 
 void printLine(uint8_t line, String message)
@@ -164,7 +163,17 @@ void process_character(uint8_t character) {
 
       // commands without
       case CMD_CLEAR_DISP:
-      // TODO: clear display
+      matrix.clear();
+      state = WAIT_FOR_STX;
+      break;
+
+      case CMD_DISPLAY_ON:
+      matrix.on();
+      state = WAIT_FOR_STX;
+      break;
+
+      case CMD_DISPLAY_OFF:
+      matrix.off();
       state = WAIT_FOR_STX;
       break;
 
