@@ -45,6 +45,26 @@ LEDMatrix::LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uin
     state = 0;
 }
 
+LEDMatrix::LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uint8_t stb, uint8_t clk, uint8_t r1, uint8_t r2,
+uint8_t g1, uint8_t g2, uint8_t b1, uint8_t b2)
+{
+  this->clk = clk;
+  this->r1 = r1;
+  this->r2 = r2;
+  this->g1 = g1;
+  this->g2 = g2;
+  this->b1 = b1;
+  this->b2 = b2;
+  this->stb = stb;
+  this->oe = oe;
+  this->a = a;
+  this->b = b;
+  this->c = c;
+  this->d = d;
+
+  mask = 0xff;
+  state = 0;
+}
 void LEDMatrix::begin(uint8_t *displaybuf, uint16_t width, uint16_t height)
 {
     ASSERT(0 == (width % 32));
@@ -93,71 +113,11 @@ void LEDMatrix::drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
 
 void LEDMatrix::drawImage(uint16_t xoffset, uint16_t yoffset, uint16_t width, uint16_t height, const uint8_t *image)
 {
-	// A
-	// {0x70,0x88,0x88,0x88,0xf8,0x88,0x88,0x00}
-    for (uint16_t y = 0; y < height; y++) {
-		// 0 1 2 3 4 5 6 7
-        for (uint16_t x = 0; x < width; x++) {
-			// 0 1 2 3 4 5
-			const uint8_t *byte = image + (x + y * width) / width;
-            // (0 + 0 * 6) = 0  / 8 = 0
-			// (1 + 0 * 6) = 1  / 8 = 0
-			// (2 + 0 * 6) = 2  / 8 = 0
-			// (3 + 0 * 6) = 3  / 8 = 0
-			// (4 + 0 * 6) = 4  / 8 = 0
-			// (5 + 0 * 6) = 5  / 8 = 0
-            // (0 + 1 * 6) = 6  / 8 = 0 / 6 = 1
-			// (1 + 1 * 6) = 7  / 8 = 0
-			// (2 + 1 * 6) = 8  / 8 = 1
-			// (3 + 1 * 6) = 9  / 8 = 1
-			// (4 + 1 * 6) = 10 / 8 = 1
-			// (5 + 1 * 6) = 11 / 8 = 1
-            // (0 + 2 * 6) = 12 / 8 = 1
-			// (1 + 2 * 6) = 13 / 8 = 1
-			// (2 + 2 * 6) = 14 / 8 = 1
-			// (3 + 2 * 6) = 15 / 8 = 1
-			// (4 + 2 * 6) = 16 / 8 = 2
-			// (5 + 2 * 6) = 17 / 8 = 2
-            // (0 + 3 * 6) = 18 / 8 = 2
-			// (1 + 3 * 6) = 19 / 8 = 2
-			// (2 + 3 * 6) = 20 / 8 = 2
-			// (3 + 3 * 6) = 21 / 8 = 2
-			// (4 + 3 * 6) = 22 / 8 = 2
-			// (5 + 3 * 6) = 23 / 8 = 2
-            // (0 + 4 * 6) = 24 / 8 = 3
-			// (1 + 4 * 6) = 25 / 8 = 3
-			// (2 + 4 * 6) = 26 / 8 = 3
-			// (3 + 4 * 6) = 27 / 8 = 3
-			// (4 + 4 * 6) = 28 / 8 = 3
-			// (5 + 4 * 6) = 29 / 8 = 3
-		    // (0 + 5 * 6) = 30 / 8 = 3
-			// (1 + 5 * 6) = 31 / 8 = 3
-			// (2 + 5 * 6) = 32 / 8 = 4
-			// (3 + 5 * 6) = 33 / 8 = 4
-			// (4 + 5 * 6) = 34 / 8 = 4
-			// (5 + 5 * 6) = 35 / 8 = 4
-            // (0 + 6 * 6) = 36 / 8 = 4
-			// (1 + 6 * 6) = 37 / 8 = 4
-			// (2 + 6 * 6) = 38 / 8 = 4
-			// (3 + 6 * 6) = 39 / 8 = 4
-			// (4 + 6 * 6) = 40 / 8 = 5
-			// (5 + 6 * 6) = 41 / 8 = 5
-            // (0 + 7 * 6) = 42 / 8 = 5
-			// (1 + 7 * 6) = 43 / 8 = 5
-			// (2 + 7 * 6) = 44 / 8 = 5
-			// (3 + 7 * 6) = 45 / 8 = 5
-			// (4 + 7 * 6) = 46 / 8 = 5
-			// (5 + 7 * 6) = 47 / 8 = 5
-
+	  for (uint16_t y = 0; y < height; y++) {
+		    for (uint16_t x = 0; x < width; x++) {
+			      const uint8_t *byte = image + (x + y * width) / width;
             uint8_t  bit = 7 - x % 8;
-			// 7 - 0 % 8 = 7
-			// 7 - 1 % 8 = 6
-			// 7 - 2 % 8 = 5
-			// 7 - 3 % 8 = 4
-			// 7 - 4 % 8 = 3
-			// 7 - 5 % 8 = 2
-
-            uint8_t  pixel = (*byte >> bit) & 1;
+			      uint8_t  pixel = (*byte >> bit) & 1;
 
             drawPoint(x + xoffset, y + yoffset, pixel);
         }

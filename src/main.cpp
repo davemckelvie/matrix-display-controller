@@ -19,6 +19,10 @@
 #include <LEDMatrix.h>
 #include <font.h>
 #include <buffer.h>
+#include <HardwareTimer.h>
+
+//TODO: HUB75 RGB display
+//      - 8 bit RGB with 'pwm'
 
 // bus stop display 3 x 64 x 32 = 192 x 32 = 24 bytes width, 32 height
 #define WIDTH   192   // pixels, 24 bytes
@@ -26,11 +30,28 @@
 #define CHAR_WIDTH  6 // including 1 pixel space to left
 #define CHAR_HEIGHT 8 // including 1 pixel space below
 #define DISP_WIDTH (WIDTH / CHAR_WIDTH) // display width in characters
-#define LED_PIN PC13
+#define LED_PIN PC14
 #define STX 2
 #define ETX 3
 #define BUFF_LEN  200
 #define NON_ASCII_LEN 32 // number of ascii control characters available
+
+// pin to display mapping
+#define PIN_A           PA13
+#define PIN_B           PA12
+#define PIN_C           PA11
+#define PIN_D           PA8
+#define PIN_OE          PB13
+#define PIN_LAT         PB14
+#define PIN_CLK         PB15
+
+// colour pins
+#define PIN_R1          PB9
+#define PIN_R2          PB5
+#define PIN_G1          PB8
+#define PIN_G2          PB6
+#define PIN_B1          PB7
+#define PIN_B2          PB4
 
 #define CMD_PRINT_LINE 4
 #define CMD_CLEAR_LINE 5
@@ -38,6 +59,7 @@
 #define CMD_SET_CHARACTER 7
 #define CMD_DISPLAY_ON 8
 #define CMD_DISPLAY_OFF 9
+#define CMD_RGB 10
 
 typedef enum {
   WAIT_FOR_STX,
@@ -47,18 +69,19 @@ typedef enum {
 } processor_state_t;
 
 LEDMatrix matrix(
-  /* A */ PA0,
-  /* B */ PA1,
-  /* C */ PA2,
-  /* D */ PA3,
-  /* OE*/ PB4,
-  /* R1*/ PB5,
-  /* R2*/ PB6,
-  /*LAT*/ PB7,
-  /*CLK*/ PB8);
+  /* A */ PIN_A,
+  /* B */ PIN_B,
+  /* C */ PIN_C,
+  /* D */ PIN_D,
+  /* OE*/ PIN_OE,
+  /* R1*/ PIN_R1,
+  /* R2*/ PIN_R2,
+  /*LAT*/ PIN_LAT,
+  /*CLK*/ PIN_CLK);
 
 CircularBuffer buffer;
 
+// TODO: RED display has i bit per pixel, RGB needs 24 bits per pixel [R, G, B]
 uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
 uint8_t bufferData[BUFF_LEN] = {0};
 uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
@@ -224,7 +247,6 @@ void process_character(uint8_t character) {
     default:
     state = WAIT_FOR_STX;
     break;
-
   }
 }
 
@@ -232,10 +254,12 @@ void setup()
 {
   Serial.begin(9600);
   pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
   initSpi();
   matrix.begin(displaybuf, WIDTH, HEIGHT);
   matrix.reverse();
   buffer.begin(bufferData, BUFF_LEN);
+  printLine(2, "        Where's my bus?");
 }
 
 void loop()
