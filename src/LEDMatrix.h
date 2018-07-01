@@ -22,49 +22,12 @@
 #ifndef __LED_MATRIX_H__
 #define __LED_MATRIX_H__
 
- #include <stdint.h>
-
-class LEDMatrix;
-
-class MatrixBuilder {
-public:
-  MatrixBuilder& a(uint8_t pin_a) {_a = pin_a; return *this;};
-  MatrixBuilder& b(uint8_t pin_b) {_b = pin_b; return *this;};
-  MatrixBuilder c(uint8_t);
-  MatrixBuilder d(uint8_t);
-  MatrixBuilder oe(uint8_t);
-  MatrixBuilder clk(uint8_t);
-  MatrixBuilder lat(uint8_t);
-  MatrixBuilder r1(uint8_t);
-  MatrixBuilder r2(uint8_t);
-  MatrixBuilder g1(uint8_t);
-  MatrixBuilder g2(uint8_t);
-  MatrixBuilder b1(uint8_t);
-  MatrixBuilder b2(uint8_t);
-  LEDMatrix create();
-
-private:
-  uint8_t _a;
-  uint8_t _b;
-  uint8_t _c;
-  uint8_t _d;
-  uint8_t _oe;
-  uint8_t _clk;
-  uint8_t _lat;
-  uint8_t _r1;
-  uint8_t _r2;
-  uint8_t _g1;
-  uint8_t _g2;
-  uint8_t _b1;
-  uint8_t _b2;
-
-};
+#include <stdint.h>
+#include <mbed.h>
 
 class LEDMatrix {
 public:
-    LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uint8_t r1, uint8_t r2, uint8_t stb, uint8_t clk);
-    LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uint8_t stb, uint8_t clk, uint8_t r1, uint8_t r2,
-    uint8_t g1, uint8_t g2, uint8_t b1, uint8_t b2);
+    LEDMatrix();
 
     /**
      * set the display's display buffer and number, the buffer's size must be not less than 512 * number / 8 bytes
@@ -116,9 +79,16 @@ public:
     void off();
 
 private:
-	uint8_t a, b, c, d;
-  uint8_t clk, stb, oe;
-  uint8_t r1, r2, g1, g2, b1, b2;
+    DigitalOut a;
+    DigitalOut b;
+    DigitalOut c;
+    DigitalOut d;
+    DigitalOut r1;
+    DigitalOut r2;
+    DigitalOut stb;
+    DigitalOut clk;
+    DigitalOut oe;
+
     uint8_t *displaybuf;
     uint16_t width;
     uint16_t height;

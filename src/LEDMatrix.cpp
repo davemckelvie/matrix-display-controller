@@ -19,7 +19,24 @@
  */
 
 #include "LEDMatrix.h"
-#include "Arduino.h"
+#include <mbed.h>
+
+// pin to display mapping
+#define PIN_A           PC_8
+#define PIN_B           PC_7
+#define PIN_C           PC_6
+#define PIN_D           PB_15
+#define PIN_OE          PB_12
+#define PIN_STB         PB_13
+#define PIN_CLK         PB_14
+
+// colour pins
+#define PIN_R1          PB_3
+#define PIN_R2          PC_10
+#define PIN_G1          PD_2
+#define PIN_G2          PC_11
+#define PIN_B1          PC_12
+#define PIN_B2          PA_15
 
 #if 0
 #define ASSERT(e)   if (!(e)) { Serial.println(#e); while (1); }
@@ -29,42 +46,13 @@
 
 #define MODULE_HEIGHT	(32)
 
-LEDMatrix::LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uint8_t r1, uint8_t r2, uint8_t stb, uint8_t clk)
+LEDMatrix::LEDMatrix() : a(PIN_A), b(PIN_B), c(PIN_C), d(PIN_D), r1(PIN_R1), r2(PIN_R2),
+                         oe(PIN_OE), stb(PIN_STB), clk(PIN_CLK)
 {
-    this->clk = clk;
-    this->r1 = r1;
-	this->r2 = r2;
-    this->stb = stb;
-    this->oe = oe;
-    this->a = a;
-    this->b = b;
-    this->c = c;
-    this->d = d;
-
     mask = 0xff;
     state = 0;
 }
 
-LEDMatrix::LEDMatrix(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t oe, uint8_t stb, uint8_t clk, uint8_t r1, uint8_t r2,
-uint8_t g1, uint8_t g2, uint8_t b1, uint8_t b2)
-{
-  this->clk = clk;
-  this->r1 = r1;
-  this->r2 = r2;
-  this->g1 = g1;
-  this->g2 = g2;
-  this->b1 = b1;
-  this->b2 = b2;
-  this->stb = stb;
-  this->oe = oe;
-  this->a = a;
-  this->b = b;
-  this->c = c;
-  this->d = d;
-
-  mask = 0xff;
-  state = 0;
-}
 void LEDMatrix::begin(uint8_t *displaybuf, uint16_t width, uint16_t height)
 {
     ASSERT(0 == (width % 32));
@@ -73,16 +61,6 @@ void LEDMatrix::begin(uint8_t *displaybuf, uint16_t width, uint16_t height)
     this->displaybuf = displaybuf;
     this->width = width;
     this->height = height;
-
-    pinMode(a, OUTPUT);
-    pinMode(b, OUTPUT);
-    pinMode(c, OUTPUT);
-    pinMode(d, OUTPUT);
-    pinMode(oe, OUTPUT);
-    pinMode(r1, OUTPUT);
-    pinMode(r2, OUTPUT);
-    pinMode(clk, OUTPUT);
-    pinMode(stb, OUTPUT);
 
     state = 1;
 }
@@ -163,27 +141,27 @@ void LEDMatrix::scan()
             ptr++;
             pixels = pixels ^ mask;     // reverse: mask = 0xff, normal: mask =0x00
             for (uint8_t bit = 0; bit < 8; bit++) {
-                digitalWrite(clk, LOW);
-                digitalWrite(red, pixels & (0x80 >> bit));
-                digitalWrite(clk, HIGH);
+                clk = 0;
+                red = pixels & (0x80 >> bit);
+                clk = 1;
             }
         }
     }
 
-    digitalWrite(oe, HIGH);              // disable display
+    oe = 1;              // disable display
 
     // select row
-    digitalWrite(a, (row & 0x01));
-    digitalWrite(b, (row & 0x02));
-    digitalWrite(c, (row & 0x04));
-    digitalWrite(d, (row & 0x08));
+    a = (row & 0x01);
+    b = (row & 0x02);
+    c = (row & 0x04);
+    d = (row & 0x08);
 
     // latch data
-    digitalWrite(stb, LOW);
-    digitalWrite(stb, HIGH);
-    digitalWrite(stb, LOW);
+    stb = 0;
+    stb = 1;
+    stb = 0;
 
-    digitalWrite(oe, LOW);              // enable display
+    oe = 0;              // enable display
 
     row = (row + 1) & 0x1f;
 }
@@ -196,5 +174,5 @@ void LEDMatrix::on()
 void LEDMatrix::off()
 {
     state = 0;
-    digitalWrite(oe, HIGH);
+    oe = 1;
 }

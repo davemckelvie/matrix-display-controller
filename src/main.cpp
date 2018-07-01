@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Arduino.h>
-#include <libmaple/dma.h>
-#include <SPI.h>
-#include <LEDMatrix.h>
-#include <font.h>
-#include <buffer.h>
-#include <HardwareTimer.h>
+
+#include <mbed.h>
+#include <string>
+#include "LEDMatrix.h"
+#include "font.h"
 
 //TODO: HUB75 RGB display
 //      - 8 bit RGB with 'pwm'
@@ -30,12 +28,14 @@
 #define CHAR_WIDTH  6 // including 1 pixel space to left
 #define CHAR_HEIGHT 8 // including 1 pixel space below
 #define DISP_WIDTH (WIDTH / CHAR_WIDTH) // display width in characters
-#define LED_PIN PC14
 #define STX 2
 #define ETX 3
 #define BUFF_LEN  200
 #define NON_ASCII_LEN 32 // number of ascii control characters available
 
+//#define STM32104
+#ifdef STM32104
+#define LED_PIN         PC14
 // pin to display mapping
 #define PIN_A           PA13
 #define PIN_B           PA12
@@ -52,6 +52,15 @@
 #define PIN_G2          PB6
 #define PIN_B1          PB7
 #define PIN_B2          PB4
+#else
+#define LED_PIN         PC_13
+
+#define MOD_SPI_SLAVE_MOSI PA_7
+#define MOD_SPI_SLAVE_MISO PA_6
+#define MOD_SPI_SLAVE_SCK PA_5
+#define MOD_SPI_SLAVE_SS PA_4
+
+#endif
 
 #define CMD_PRINT_LINE 4
 #define CMD_CLEAR_LINE 5
@@ -68,18 +77,11 @@ typedef enum {
   GET_DATA,
 } processor_state_t;
 
-LEDMatrix matrix(
-  /* A */ PIN_A,
-  /* B */ PIN_B,
-  /* C */ PIN_C,
-  /* D */ PIN_D,
-  /* OE*/ PIN_OE,
-  /* R1*/ PIN_R1,
-  /* R2*/ PIN_R2,
-  /*LAT*/ PIN_LAT,
-  /*CLK*/ PIN_CLK);
+LEDMatrix matrix;
 
-CircularBuffer buffer;
+CircularBuffer<uint8_t, BUFF_LEN> buffer;
+DigitalOut ledPin(LED_PIN);
+SPISlave spi_slave(MOD_SPI_SLAVE_MOSI, MOD_SPI_SLAVE_MISO, MOD_SPI_SLAVE_SCK, MOD_SPI_SLAVE_SS);
 
 // TODO: RED display has i bit per pixel, RGB needs 24 bits per pixel [R, G, B]
 uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
@@ -107,7 +109,7 @@ void putch(uint8_t x, uint8_t y, char character)
   }
 }
 
-void printLine(uint8_t line, String message)
+void printLine(uint8_t line, string message)
 {
   // convert input, line, into x and y
   // line 1: x = 0, y = 0
@@ -116,7 +118,7 @@ void printLine(uint8_t line, String message)
   // line 4: x = 0, y = 24
   uint8_t linePixel = (line - 1) * CHAR_HEIGHT;
   for (uint8_t i = 0; i < message.length(); i++) {
-      putch(i * CHAR_WIDTH, linePixel, message.charAt(i));
+      putch(i * CHAR_WIDTH, linePixel, message.at(i));
   }
 }
 
@@ -134,25 +136,30 @@ void printLine(uint8_t line, uint8_t *message) {
   }
 }
 
-void initSpi()
-{
-  SPI.setModule(1);
-  SPI.setClockDivider(SPI_CLOCK_DIV16);
-  SPI.beginSlave();
-  spi_irq_enable(SPI.dev(), SPI_RXNE_INTERRUPT);
+extern "C" {
+void __irq_spi1(void);
 }
 
-extern "C" {
-  void __irq_spi1(void);
+void initSpi()
+{
+  spi_slave.format(8, 0);
+  spi_slave.frequency(4500000);
+  NVIC_SetVector(SPI1_IRQn, (uint32_t) __irq_spi1);
+  NVIC_SetPriority(SPI1_IRQn, 2);
+  NVIC_EnableIRQ(SPI1_IRQn);
+  spi_slave.reply((int) 0x20);
 }
+
 
 void __irq_spi1(void)
 {
-  uint16_t reg = spi_rx_reg(SPI.dev());
-  spi_tx_reg(SPI.dev(), reg);
+    uint32_t reg = SPI1->DR;
+  uint8_t b = (uint8_t) (reg & 0x000000FF);
 
-  uint8_t b = (uint8_t) (reg & 0xFF);
-  buffer.put(b);
+  if (!buffer.full()) {
+    buffer.push(b);
+  }
+
   if (b == ETX) {
     command_count++;
   }
@@ -226,9 +233,9 @@ void process_character(uint8_t character) {
 
     case GET_DATA:
     if (character == ETX) {
-      noInterrupts();
+      NVIC_DisableIRQ(SPI1_IRQn);
       command_count--;
-      interrupts();
+      NVIC_EnableIRQ(SPI1_IRQn);
       lineBuffer[index] = 0;
       state = WAIT_FOR_STX;
       if (command == CMD_PRINT_LINE) {
@@ -252,24 +259,28 @@ void process_character(uint8_t character) {
 
 void setup()
 {
-  Serial.begin(9600);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
+  ledPin = 1;
   initSpi();
   matrix.begin(displaybuf, WIDTH, HEIGHT);
   matrix.reverse();
-  buffer.begin(bufferData, BUFF_LEN);
   printLine(2, "        Where's my bus?");
 }
 
-void loop()
+int main()
 {
-  matrix.scan();
+    setup();
 
-  if (command_count > 0) {
-    uint8_t character;
-    if (buffer.get(&character)) {
-      process_character(character);
+    while(1) {
+        matrix.scan();
+
+        if (command_count > 0) {
+            uint8_t character;
+            if (!buffer.empty()) {
+              buffer.pop(character);
+                process_character(character);
+            }
+        }
     }
-  }
+
+    return 0;
 }
