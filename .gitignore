@@ -3,3 +3,7 @@
 .clang_complete
 .gcc-flags.json
 .vscode/
+.pio/
+CMakeLists.txt
+CMakeListsPrivate.txt
+cmake-build-debug/
