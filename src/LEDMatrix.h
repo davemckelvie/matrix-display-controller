@@ -22,9 +22,6 @@
 #ifndef __LED_MATRIX_H__
 #define __LED_MATRIX_H__
 
-#include <stdint.h>
-#include <mbed.h>
-
 class LEDMatrix {
 public:
     LEDMatrix();

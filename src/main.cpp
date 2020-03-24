@@ -16,6 +16,8 @@
 
 #include <mbed.h>
 #include <string>
+#include <targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F401xE/device/stm32f401xe.h>
+#include <targets/TARGET_STM/TARGET_STM32F4/device/stm32f4xx_hal_spi.h>
 #include "LEDMatrix.h"
 #include "font.h"
 
@@ -80,12 +82,15 @@ typedef enum {
 LEDMatrix matrix;
 
 CircularBuffer<uint8_t, BUFF_LEN> buffer;
+Serial pc(PA_9, PA_10);
 DigitalOut ledPin(LED_PIN);
 SPISlave spi_slave(MOD_SPI_SLAVE_MOSI, MOD_SPI_SLAVE_MISO, MOD_SPI_SLAVE_SCK, MOD_SPI_SLAVE_SS);
 
+SPI_HandleTypeDef spiHandle;
+
 // TODO: RED display has i bit per pixel, RGB needs 24 bits per pixel [R, G, B]
 uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
-uint8_t bufferData[BUFF_LEN] = {0};
+
 uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
 
 static volatile uint8_t command_count = 0;
@@ -136,33 +141,58 @@ void printLine(uint8_t line, uint8_t *message) {
   }
 }
 
-extern "C" {
-void __irq_spi1(void);
+extern "C" void _irq_spi1(void);
+
+void _irq_spi1(void)
+{
+  ledPin = 0;
+
+  if (SPI1->SR & SPI_SR_RXNE) {
+    uint32_t reg = SPI1->DR;
+    uint8_t b = (uint8_t) (reg & 0x000000FF);
+    if (!buffer.full()) {
+      buffer.push(b);
+    }
+    if (b == ETX) {
+      command_count++;
+    }
+  }
 }
 
 void initSpi()
 {
+  spiHandle.Instance = SPI1;
+  spiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  spiHandle.Init.Direction         = SPI_DIRECTION_2LINES;
+  spiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
+  spiHandle.Init.CLKPolarity       = SPI_POLARITY_HIGH;
+  spiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+  spiHandle.Init.CRCPolynomial     = 7;
+  spiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
+  spiHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+  spiHandle.Init.NSS               = SPI_NSS_SOFT;
+  spiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
+  spiHandle.Init.Mode              = SPI_MODE_SLAVE;
+
+  HAL_SPI_Init(&spiHandle);
+
   spi_slave.format(8, 0);
   spi_slave.frequency(4500000);
-  NVIC_SetVector(SPI1_IRQn, (uint32_t) __irq_spi1);
-  NVIC_SetPriority(SPI1_IRQn, 2);
+  NVIC_SetVector(SPI1_IRQn, (uint32_t) _irq_spi1);
+  NVIC_SetPriority(SPI1_IRQn, 0);
   NVIC_EnableIRQ(SPI1_IRQn);
+  SPI1->CR2 |= SPI_CR2_RXNEIE;
   spi_slave.reply((int) 0x20);
 }
 
-
-void __irq_spi1(void)
+void initDma()
 {
-    uint32_t reg = SPI1->DR;
-  uint8_t b = (uint8_t) (reg & 0x000000FF);
+  DMA_HandleTypeDef dmaHandleTypeDef;
+  DMA_InitTypeDef dmaInitTypeDef;
 
-  if (!buffer.full()) {
-    buffer.push(b);
-  }
+  dmaHandleTypeDef.Instance = DMA2_
+  HAL_DMA_DeInit(&dmaHandleTypeDef);
 
-  if (b == ETX) {
-    command_count++;
-  }
 }
 
 void process_character(uint8_t character) {
@@ -259,6 +289,7 @@ void process_character(uint8_t character) {
 
 void setup()
 {
+  HAL_Init();
   ledPin = 1;
   initSpi();
   matrix.begin(displaybuf, WIDTH, HEIGHT);
@@ -270,7 +301,10 @@ int main()
 {
     setup();
 
+    pc.printf("Hello Display\n\r");
+
     while(1) {
+      ledPin = 1;
         matrix.scan();
 
         if (command_count > 0) {

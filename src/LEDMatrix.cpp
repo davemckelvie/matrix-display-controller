@@ -18,8 +18,9 @@
  *  @license    MIT
  */
 
-#include "LEDMatrix.h"
+#include <stdint.h>
 #include <mbed.h>
+#include "LEDMatrix.h"
 
 // pin to display mapping
 #define PIN_A           PC_8
@@ -130,7 +131,6 @@ void LEDMatrix::scan()
     }
 
     uint8_t *head = displaybuf + row * (width / 8);
-	uint8_t red = row < 16 ? r1 : r2;
 
     for (uint8_t line = 0; line < (height / MODULE_HEIGHT); line++) {
         uint8_t *ptr = head;
@@ -142,7 +142,11 @@ void LEDMatrix::scan()
             pixels = pixels ^ mask;     // reverse: mask = 0xff, normal: mask =0x00
             for (uint8_t bit = 0; bit < 8; bit++) {
                 clk = 0;
-                red = pixels & (0x80 >> bit);
+                if (row < 16) {
+                    r1 = pixels & (0x80 >> bit);
+                } else {
+                    r2 = pixels & (0x80 >> bit);
+                }
                 clk = 1;
             }
         }
