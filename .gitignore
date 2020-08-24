@@ -10,3 +10,4 @@ CMakeListsPrivate.txt
 .idea/
 CMakeLists.txt
 cmake-build-debug/
+.pio/build
