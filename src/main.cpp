@@ -16,8 +16,6 @@
 
 #include <mbed.h>
 #include <string>
-#include <targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F401xE/device/stm32f401xe.h>
-#include <targets/TARGET_STM/TARGET_STM32F4/device/stm32f4xx_hal_spi.h>
 #include "LEDMatrix.h"
 #include "font.h"
 
@@ -32,7 +30,7 @@
 #define DISP_WIDTH (WIDTH / CHAR_WIDTH) // display width in characters
 #define STX 2
 #define ETX 3
-#define BUFF_LEN  200
+#define BUFF_LEN  512
 #define NON_ASCII_LEN 32 // number of ascii control characters available
 
 //#define STM32104
@@ -79,21 +77,23 @@ typedef enum {
   GET_DATA,
 } processor_state_t;
 
-LEDMatrix matrix;
-
-CircularBuffer<uint8_t, BUFF_LEN> buffer;
-Serial pc(PA_9, PA_10);
-DigitalOut ledPin(LED_PIN);
-SPISlave spi_slave(MOD_SPI_SLAVE_MOSI, MOD_SPI_SLAVE_MISO, MOD_SPI_SLAVE_SCK, MOD_SPI_SLAVE_SS);
-
-SPI_HandleTypeDef spiHandle;
+static LEDMatrix matrix;
+static CircularBuffer<uint8_t, BUFF_LEN> buffer;
+static BufferedSerial pc(PA_9, PA_10);
+static DigitalOut ledPin(LED_PIN);
+static SPI_HandleTypeDef spiHandle;
+static SPISlave spi_slave(MOD_SPI_SLAVE_MOSI, MOD_SPI_SLAVE_MISO, MOD_SPI_SLAVE_SCK, MOD_SPI_SLAVE_SS);
 
 // TODO: RED display has i bit per pixel, RGB needs 24 bits per pixel [R, G, B]
-uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
+static uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
+static uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
 
-uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
+//static volatile uint8_t command_count = 0;
 
-static volatile uint8_t command_count = 0;
+FileHandle *mbed::mbed_override_console(int fd)
+{
+    return &pc;
+}
 
 void overRideControlCharacter(uint8_t index, uint8_t *bitmap)
 {
@@ -107,11 +107,14 @@ void overRideControlCharacter(uint8_t index, uint8_t *bitmap)
 
 void putch(uint8_t x, uint8_t y, char character)
 {
-  if (character >= 0 && character < 0x20) {
-    matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, control[character]);
-  } else if (character > 0x1F && character < 0x7F) {
-    matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, ASCII[character - 0x20]);
-  }
+   if (isprint(character)) {
+      matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, ASCII[character - 0x20]);
+      return;
+   }
+  
+   if (iscntrl(character)) {
+      matrix.drawImage(x, y, CHAR_WIDTH, CHAR_HEIGHT, control[(uint8_t)character]);
+   } 
 }
 
 void printLine(uint8_t line, string message)
@@ -127,7 +130,7 @@ void printLine(uint8_t line, string message)
   }
 }
 
-void printLine(volatile uint8_t *message) {
+void printLine(uint8_t *message) {
   uint8_t linePixel = (message[0] - 1) * CHAR_HEIGHT;
   for (int i = 0; i < DISP_WIDTH && message[i + 1]; i++) {
       putch(i * CHAR_WIDTH, linePixel, message[i + 1]);
@@ -150,12 +153,10 @@ void _irq_spi1(void)
   if (SPI1->SR & SPI_SR_RXNE) {
     uint32_t reg = SPI1->DR;
     uint8_t b = (uint8_t) (reg & 0x000000FF);
-    if (!buffer.full()) {
-      buffer.push(b);
-    }
-    if (b == ETX) {
-      command_count++;
-    }
+    buffer.push(b);
+   //  if (b == ETX) {
+      // command_count++;
+   //  }
   }
 }
 
@@ -183,16 +184,6 @@ void initSpi()
   NVIC_EnableIRQ(SPI1_IRQn);
   SPI1->CR2 |= SPI_CR2_RXNEIE;
   spi_slave.reply((int) 0x20);
-}
-
-void initDma()
-{
-  DMA_HandleTypeDef dmaHandleTypeDef;
-  DMA_InitTypeDef dmaInitTypeDef;
-
-  dmaHandleTypeDef.Instance = DMA2_
-  HAL_DMA_DeInit(&dmaHandleTypeDef);
-
 }
 
 void process_character(uint8_t character) {
@@ -263,9 +254,9 @@ void process_character(uint8_t character) {
 
     case GET_DATA:
     if (character == ETX) {
-      NVIC_DisableIRQ(SPI1_IRQn);
-      command_count--;
-      NVIC_EnableIRQ(SPI1_IRQn);
+      // NVIC_DisableIRQ(SPI1_IRQn);
+      // command_count--;
+      // NVIC_EnableIRQ(SPI1_IRQn);
       lineBuffer[index] = 0;
       state = WAIT_FOR_STX;
       if (command == CMD_PRINT_LINE) {
@@ -290,31 +281,34 @@ void process_character(uint8_t character) {
 void setup()
 {
   HAL_Init();
-  ledPin = 1;
+  ledPin = 0;
   initSpi();
   matrix.begin(displaybuf, WIDTH, HEIGHT);
   matrix.reverse();
-  printLine(2, "        Where's my bus?");
+  printLine(2, "          It's a sign!          ");
 }
 
 int main()
 {
-    setup();
+   setup();
 
-    pc.printf("Hello Display\n\r");
+   printf("Hello Display\n\r");
 
-    while(1) {
-      ledPin = 1;
-        matrix.scan();
+   while(1) {
+      matrix.scan();
+        
+      //if (command_count > 0) {
+         if (!buffer.empty()) {
+            ledPin = 1;
+            uint8_t character = 0;
+            buffer.pop(character);
+            //printf("%c ", character);
+            //if (isprint(character)) {
+            //}
+            process_character(character);
+         }
+      //}
+   }
 
-        if (command_count > 0) {
-            uint8_t character;
-            if (!buffer.empty()) {
-              buffer.pop(character);
-                process_character(character);
-            }
-        }
-    }
-
-    return 0;
+   return 0;
 }

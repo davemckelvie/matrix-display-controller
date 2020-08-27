@@ -82,10 +82,10 @@ private:
     DigitalOut d;
     DigitalOut r1;
     DigitalOut r2;
+    DigitalOut oe;
     DigitalOut stb;
     DigitalOut clk;
-    DigitalOut oe;
-
+    
     uint8_t *displaybuf;
     uint16_t width;
     uint16_t height;
