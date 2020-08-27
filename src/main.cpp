@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <Arduino.h>
-#include <libmaple/dma.h>
 #include <SPI.h>
 #include <LEDMatrix.h>
 #include <font.h>
