@@ -11,3 +11,8 @@ CMakeListsPrivate.txt
 CMakeLists.txt
 cmake-build-debug/
 .pio/build
+.pio/
+CMakeLists.txt
+CMakeListsPrivate.txt
+cmake-build-debug/
+
