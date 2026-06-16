@@ -33,34 +33,12 @@
 #define BUFF_LEN  512
 #define NON_ASCII_LEN 32 // number of ascii control characters available
 
-//#define STM32104
-#ifdef STM32104
-#define LED_PIN         PC14
-// pin to display mapping
-#define PIN_A           PA13
-#define PIN_B           PA12
-#define PIN_C           PA11
-#define PIN_D           PA8
-#define PIN_OE          PB13
-#define PIN_LAT         PB14
-#define PIN_CLK         PB15
-
-// colour pins
-#define PIN_R1          PB9
-#define PIN_R2          PB5
-#define PIN_G1          PB8
-#define PIN_G2          PB6
-#define PIN_B1          PB7
-#define PIN_B2          PB4
-#else
 #define LED_PIN         PC_13
 
 #define MOD_SPI_SLAVE_MOSI PA_7
 #define MOD_SPI_SLAVE_MISO PA_6
 #define MOD_SPI_SLAVE_SCK PA_5
 #define MOD_SPI_SLAVE_SS PA_4
-
-#endif
 
 #define CMD_PRINT_LINE 4
 #define CMD_CLEAR_LINE 5
@@ -87,8 +65,6 @@ static SPISlave spi_slave(MOD_SPI_SLAVE_MOSI, MOD_SPI_SLAVE_MISO, MOD_SPI_SLAVE_
 // TODO: RED display has i bit per pixel, RGB needs 24 bits per pixel [R, G, B]
 static uint8_t displaybuf[WIDTH * HEIGHT / 8] = {0};
 static uint8_t control[NON_ASCII_LEN][CHAR_HEIGHT] = {0};
-
-//static volatile uint8_t command_count = 0;
 
 FileHandle *mbed::mbed_override_console(int fd)
 {
@@ -154,9 +130,6 @@ void _irq_spi1(void)
     uint32_t reg = SPI1->DR;
     uint8_t b = (uint8_t) (reg & 0x000000FF);
     buffer.push(b);
-   //  if (b == ETX) {
-      // command_count++;
-   //  }
   }
 }
 
@@ -254,9 +227,6 @@ void process_character(uint8_t character) {
 
     case GET_DATA:
     if (character == ETX) {
-      // NVIC_DisableIRQ(SPI1_IRQn);
-      // command_count--;
-      // NVIC_EnableIRQ(SPI1_IRQn);
       lineBuffer[index] = 0;
       state = WAIT_FOR_STX;
       if (command == CMD_PRINT_LINE) {
@@ -296,18 +266,13 @@ int main()
 
    while(1) {
       matrix.scan();
-        
-      //if (command_count > 0) {
-         if (!buffer.empty()) {
-            ledPin = 1;
-            uint8_t character = 0;
-            buffer.pop(character);
-            //printf("%c ", character);
-            //if (isprint(character)) {
-            //}
-            process_character(character);
-         }
-      //}
+
+      if (!buffer.empty()) {
+         ledPin = 1;
+         uint8_t character = 0;
+         buffer.pop(character);
+         process_character(character);
+      }
    }
 
    return 0;

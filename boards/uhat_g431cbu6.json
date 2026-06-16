@@ -1,0 +1,27 @@
+{
+  "build": {
+    "core": "stm32",
+    "cpu": "cortex-m4",
+    "extra_flags": "-DSTM32G4xx -DSTM32G431xx",
+    "f_cpu": "170000000L",
+    "mcu": "stm32g431cbu6",
+    "mbed_variant": "NUCLEO_G431RB",
+    "product_line": "STM32G431xx",
+    "variant": "STM32G4xx/G431C(6-8-B)U_G441CBU"
+  },
+  "debug": {
+    "jlink_device": "STM32G431CB",
+    "openocd_target": "stm32g4x",
+    "svd_path": "STM32G431xx.svd"
+  },
+  "frameworks": ["mbed", "stm32cube", "cmsis"],
+  "name": "uHat STM32G431CBU6 (48-pin custom PCB)",
+  "url": "https://github.com/davemckelvie/matrix-display-controller",
+  "upload": {
+    "maximum_ram_size": 32768,
+    "maximum_size": 131072,
+    "protocol": "stlink",
+    "protocols": ["stlink", "jlink", "cmsis-dap", "blackmagic"]
+  },
+  "vendor": "Subverse"
+}

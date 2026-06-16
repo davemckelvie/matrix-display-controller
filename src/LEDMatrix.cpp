@@ -16,14 +16,17 @@
  *  @auther     Yihui Xiong
  *  @date       Nov 8, 2013
  *  @license    MIT
+ *
+ *  Ported to mbed / STM32G431CBU6 (board-v4)
+ *  Pin mapping is for the uHat custom PCB — adjust for your layout.
  */
 
 #include <stdint.h>
 #include <mbed.h>
 #include "LEDMatrix.h"
 
-// pin to display mapping
-#define PIN_A           PC_8
+// pin to display mapping (uHat PCB / STM32G431CBU6 UFQFPN48)
+#define PIN_A           PC_0
 #define PIN_B           PC_7
 #define PIN_C           PC_6
 #define PIN_D           PB_15
@@ -33,10 +36,10 @@
 
 // colour pins
 #define PIN_R1          PB_3
-#define PIN_R2          PC_10
+#define PIN_R2          PC_1
 #define PIN_G1          PD_2
-#define PIN_G2          PC_11
-#define PIN_B1          PC_12
+#define PIN_G2          PC_2
+#define PIN_B1          PC_3
 #define PIN_B2          PA_15
 
 #if 0
