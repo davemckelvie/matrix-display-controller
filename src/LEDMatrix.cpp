@@ -26,20 +26,21 @@
 #include "LEDMatrix.h"
 
 // pin to display mapping (uHat PCB / STM32G431CBU6 UFQFPN48)
-#define PIN_A           PC_0
-#define PIN_B           PC_7
+// All pins confirmed bonded on the 48-pin package via arduino variant files
+#define PIN_A           PB_0
+#define PIN_B           PB_1
 #define PIN_C           PC_6
 #define PIN_D           PB_15
 #define PIN_OE          PB_12
 #define PIN_STB         PB_13
 #define PIN_CLK         PB_14
 
-// colour pins
+// colour pins — all on port B for convenient routing
 #define PIN_R1          PB_3
-#define PIN_R2          PC_1
-#define PIN_G1          PD_2
-#define PIN_G2          PC_2
-#define PIN_B1          PC_3
+#define PIN_R2          PB_2
+#define PIN_G1          PB_4
+#define PIN_G2          PB_5
+#define PIN_B1          PB_6
 #define PIN_B2          PA_15
 
 #if 0
