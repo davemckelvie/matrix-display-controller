@@ -1,0 +1,7 @@
+{
+    "target_overrides": {
+        "*": {
+            "target.clock_source": "USE_PLL_HSI"
+        }
+    }
+}
